@@ -960,6 +960,45 @@ distclean: mrproper
 		-o -name 'core' \) \
 		-type f -print | xargs rm -f
 
+# Brief documentation of the typical targets used
+# ---------------------------------------------------------------------------
+
+PHONY += help
+help:
+	@echo  'Cleaning targets:'
+	@echo  '  clean		  - Remove most generated files but keep the config and'
+	@echo  '                    enough build support to build external modules'
+	@echo  '  mrproper	  - Remove all generated files + config + various backup files'
+	@echo  '  distclean	  - mrproper + remove editor backup and patch files'
+	@echo  ''
+	@echo  'Configuration targets:'
+	@$(MAKE) -f $(srctree)/scripts/kconfig/Makefile help
+	@echo  ''
+	@echo  'Other generic targets:'
+	@echo  '  all		  - Build all targets marked with [*]'
+	@echo  '* vmlinux	  - Build the bare kernel'
+	@echo  ''
+	@echo  'Static analysers:'
+	@echo  '  includecheck    - Check for duplicate included header files'
+	@echo  '  headerdep       - Detect inclusion cycles in headers'
+	@echo  ''
+	@echo  'Architecture specific targets ($(SRCARCH)):'
+	@$(if $(archhelp),$(archhelp),\
+		echo '  No architecture specific help defined for $(SRCARCH)')
+	@echo  ''
+
+	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
+	@echo  '  make V=2   [targets] 2 => give reason for rebuild of target'
+	@echo  '  make O=dir [targets] Locate all output files in "dir", including .config'
+	@echo  '  make C=1   [targets] Check re-compiled c source with $$CHECK'
+	@echo  '                       (sparse by default)'
+	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK'
+	@echo  '  make W=n   [targets] Enable extra build checks, n=1,2,3 where'
+	@echo  '		1: warnings which may be relevant and do not occur too often'
+	@echo  '		2: warnings which occur quite often but may still be relevant'
+	@echo  '		3: more obscure warnings, can most likely be ignored'
+	@echo  '		Multiple levels can be combined with W=12 or W=123'
+
 # Handle descending into subdirectories listed in $(build-dirs)
 # Preset locale variables to speed up the build process. Limit locale
 # tweaks to this spot to avoid wrong language settings when running
