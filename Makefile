@@ -244,13 +244,11 @@ clean-targets := %clean mrproper cleandocs
 no-dot-config-targets := $(clean-targets) \
 			cscope gtags TAGS tags outputmakefile $(version_h)
 no-sync-config-targets := $(no-dot-config-targets)
-single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
 
 config-build	:=
 mixed-build	:=
 need-config	:= 1
 may-sync-config	:= 1
-single-build	:=
 
 ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
 	ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
@@ -268,15 +266,6 @@ endif
 ifneq ($(filter config %config,$(MAKECMDGOALS)),)
 	config-build := 1
         ifneq ($(words $(MAKECMDGOALS)),1)
-		mixed-build := 1
-	endif
-endif
-
-
-# We cannot build single targets and the others at the same time
-ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
-	single-build := 1
-	ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
 		mixed-build := 1
 	endif
 endif
