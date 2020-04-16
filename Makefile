@@ -207,16 +207,6 @@ ifndef KBUILD_CHECKSRC
   KBUILD_CHECKSRC = 0
 endif
 
-# Use make M=dir or set the environment variable KBUILD_EXTMOD to specify the
-# directory of external module to build. Setting M= takes precedence.
-ifeq ("$(origin M)", "command line")
-  KBUILD_EXTMOD := $(M)
-endif
-
-export KBUILD_CHECKSRC KBUILD_EXTMOD
-
-extmod-prefix = $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)
-
 ifeq ($(abs_srctree),$(abs_objtree))
         # building in the source tree
         srctree := .
@@ -248,17 +238,12 @@ export building_out_of_srctree srctree objtree VPATH
 # Detect when mixed targets is specified, and make a second invocation
 # of make so .config is not included in this case either (for *config).
 
-version_h := include/generated/uapi/linux/version.h
-old_version_h := include/linux/version.h
+version_h := include/generated/version.h
 
 clean-targets := %clean mrproper cleandocs
 no-dot-config-targets := $(clean-targets) \
-			 cscope gtags TAGS tags help% %docs check% coccicheck \
-			 $(version_h) headers headers_% archheaders archscripts \
-			 %asm-generic kernelversion %src-pkg dt_binding_check \
-			 outputmakefile
-no-sync-config-targets := $(no-dot-config-targets) install %install \
-			   kernelrelease
+			cscope gtags TAGS tags outputmakefile $(version_h)
+no-sync-config-targets := $(no-dot-config-targets)
 single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
 
 config-build	:=
@@ -279,18 +264,14 @@ ifneq ($(filter $(no-sync-config-targets), $(MAKECMDGOALS)),)
 	endif
 endif
 
-ifneq ($(KBUILD_EXTMOD),)
-	may-sync-config :=
+
+ifneq ($(filter config %config,$(MAKECMDGOALS)),)
+	config-build := 1
+        ifneq ($(words $(MAKECMDGOALS)),1)
+		mixed-build := 1
+	endif
 endif
 
-ifeq ($(KBUILD_EXTMOD),)
-        ifneq ($(filter config %config,$(MAKECMDGOALS)),)
-		config-build := 1
-                ifneq ($(words $(MAKECMDGOALS)),1)
-			mixed-build := 1
-                endif
-        endif
-endif
 
 # We cannot build single targets and the others at the same time
 ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
@@ -451,57 +432,37 @@ BASH		= bash
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)
 NOSTDINC_FLAGS :=
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 LDFLAGS_vmlinux =
 
-# Use USERINCLUDE when you must reference the UAPI directories only.
-USERINCLUDE    := \
-		-I$(srctree)/arch/$(SRCARCH)/include/uapi \
-		-I$(objtree)/arch/$(SRCARCH)/include/generated/uapi \
-		-I$(srctree)/include/uapi \
-		-I$(objtree)/include/generated/uapi \
-                -include $(srctree)/include/linux/kconfig.h
-
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option
-LINUXINCLUDE    := \
-		-I$(srctree)/arch/$(SRCARCH)/include \
+LINUXINCLUDE    := -I$(srctree)/arch/$(SRCARCH)/include \
 		-I$(objtree)/arch/$(SRCARCH)/include/generated \
 		$(if $(building_out_of_srctree),-I$(srctree)/include) \
-		-I$(objtree)/include \
-		$(USERINCLUDE)
+		-I$(objtree)/include
 
 KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
 KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
-		   -Wno-format-security \
-		   -std=gnu89
+		   -Wno-format-security -std=gnu89
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
-KBUILD_AFLAGS_MODULE  := -DMODULE
-KBUILD_CFLAGS_MODULE  := -DMODULE
-KBUILD_LDFLAGS_MODULE :=
-export KBUILD_LDS_MODULE := $(srctree)/scripts/module-common.lds
 KBUILD_LDFLAGS :=
 GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
 export ARCH SRCARCH CONFIG_SHELL BASH HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE LD CC
 export CPP AR NM STRIP OBJCOPY OBJDUMP OBJSIZE READELF PAHOLE LEX YACC AWK INSTALLKERNEL
-export PERL PYTHON PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
-export KBUILD_HOSTCXXFLAGS KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS LDFLAGS_MODULE
+export PERL PYTHON PYTHON3 CHECK CHECKFLAGS MAKE HOSTCXX
+export KBUILD_HOSTCXXFLAGS KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS
 
 export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS KBUILD_LDFLAGS
-export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE
-export CFLAGS_KASAN CFLAGS_KASAN_NOSANITIZE CFLAGS_UBSAN
-export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
-export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
+export KBUILD_CFLAGS CFLAGS_KERNEL
+export KBUILD_AFLAGS AFLAGS_KERNEL
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
 
 # Files to ignore in find ... statements
@@ -519,7 +480,6 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
-	$(Q)rm -f .tmp_quiet_recordmcount
 
 PHONY += outputmakefile
 # Before starting out-of-tree build, make sure the source tree is clean.
@@ -578,7 +538,7 @@ ifdef config-build
 # Read arch specific Makefile to set KBUILD_DEFCONFIG as needed.
 # KBUILD_DEFCONFIG may point out an alternative default configuration
 # used for 'make defconfig'
-include arch/$(SRCARCH)/Makefile
+-include arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG CC_VERSION_TEXT
 
 config: outputmakefile scripts_basic FORCE
@@ -595,55 +555,20 @@ else #!config-build
 # If building an external module we do not care about the all: rule
 # but instead _all depend on modules
 PHONY += all
-ifeq ($(KBUILD_EXTMOD),)
 _all: all
-else
-_all: modules
-endif
 
-# Decide whether to build built-in, modular, or both.
-# Normally, just do built-in.
-
-KBUILD_MODULES :=
 KBUILD_BUILTIN := 1
 
-# If we have only "make modules", don't compile built-in objects.
-# When we're building modules with modversions, we need to consider
-# the built-in objects during the descend as well, in order to
-# make sure the checksums are up to date before we record them.
-
-ifeq ($(MAKECMDGOALS),modules)
-  KBUILD_BUILTIN := $(if $(CONFIG_MODVERSIONS),1)
-endif
-
-# If we have "make <whatever> modules", compile modules
-# in addition to whatever we do anyway.
-# Just "make" or "make all" shall build modules as well
-
-ifneq ($(filter all _all modules nsdeps,$(MAKECMDGOALS)),)
-  KBUILD_MODULES := 1
-endif
-
-ifeq ($(MAKECMDGOALS),)
-  KBUILD_MODULES := 1
-endif
-
-export KBUILD_MODULES KBUILD_BUILTIN
+export KBUILD_BUILTIN
 
 ifdef need-config
 include include/config/auto.conf
 endif
 
-ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
 init-y		:= init/
-drivers-y	:= drivers/ sound/
-drivers-$(CONFIG_SAMPLES) += samples/
-net-y		:= net/
-libs-y		:= lib/
-core-y		:= usr/
-virt-y		:= virt/
-endif # KBUILD_EXTMOD
+libs-y		:=
+core-y		:=
 
 # The all: target is the default when no target is given on the
 # command line.
@@ -651,26 +576,7 @@ endif # KBUILD_EXTMOD
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage \
-	$(call cc-option,-fno-tree-loop-im) \
-	$(call cc-disable-warning,maybe-uninitialized,)
-export CFLAGS_GCOV
-
-# The arch Makefiles can override CC_FLAGS_FTRACE. We may also append it later.
-ifdef CONFIG_FUNCTION_TRACER
-  CC_FLAGS_FTRACE := -pg
-endif
-
-RETPOLINE_CFLAGS_GCC := -mindirect-branch=thunk-extern -mindirect-branch-register
-RETPOLINE_VDSO_CFLAGS_GCC := -mindirect-branch=thunk-inline -mindirect-branch-register
-RETPOLINE_CFLAGS_CLANG := -mretpoline-external-thunk
-RETPOLINE_VDSO_CFLAGS_CLANG := -mretpoline
-RETPOLINE_CFLAGS := $(call cc-option,$(RETPOLINE_CFLAGS_GCC),$(call cc-option,$(RETPOLINE_CFLAGS_CLANG)))
-RETPOLINE_VDSO_CFLAGS := $(call cc-option,$(RETPOLINE_VDSO_CFLAGS_GCC),$(call cc-option,$(RETPOLINE_VDSO_CFLAGS_CLANG)))
-export RETPOLINE_CFLAGS
-export RETPOLINE_VDSO_CFLAGS
-
-include arch/$(SRCARCH)/Makefile
+-include arch/$(SRCARCH)/Makefile
 
 ifdef need-config
 ifdef may-sync-config
@@ -729,16 +635,9 @@ else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS += -Os
 endif
 
-ifdef CONFIG_CC_DISABLE_WARN_MAYBE_UNINITIALIZED
-KBUILD_CFLAGS   += -Wno-maybe-uninitialized
-endif
-
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
-
-include scripts/Makefile.kcov
-include scripts/Makefile.gcc-plugins
 
 ifdef CONFIG_READABLE_ASM
 # Disable optimizations that make assembler listings hard to read.
@@ -749,16 +648,6 @@ KBUILD_CFLAGS += $(call cc-option,-fno-reorder-blocks,) \
                  $(call cc-option,-fno-ipa-cp-clone,) \
                  $(call cc-option,-fno-partial-inlining)
 endif
-
-ifneq ($(CONFIG_FRAME_WARN),0)
-KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
-endif
-
-stackp-flags-$(CONFIG_CC_HAS_STACKPROTECTOR_NONE) := -fno-stack-protector
-stackp-flags-$(CONFIG_STACKPROTECTOR)             := -fstack-protector
-stackp-flags-$(CONFIG_STACKPROTECTOR_STRONG)      := -fstack-protector-strong
-
-KBUILD_CFLAGS += $(stackp-flags-y)
 
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CPPFLAGS += -Qunused-arguments
@@ -785,18 +674,8 @@ ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
-# pointers.  For those, we don't have FUNCTION_TRACER automatically
-# select FRAME_POINTER.  However, FUNCTION_TRACER adds -pg, and this is
-# incompatible with -fomit-frame-pointer with current GCC, so we don't use
-# -fomit-frame-pointer with FUNCTION_TRACER.
-ifndef CONFIG_FUNCTION_TRACER
+# pointers.
 KBUILD_CFLAGS	+= -fomit-frame-pointer
-endif
-endif
-
-# Initialize all stack variables with a pattern, if desired.
-ifdef CONFIG_INIT_STACK_ALL
-KBUILD_CFLAGS	+= -ftrivial-auto-var-init=pattern
 endif
 
 DEBUG_CFLAGS	:= $(call cc-option, -fno-var-tracking-assignments)
@@ -821,53 +700,13 @@ endif
 KBUILD_CFLAGS += $(DEBUG_CFLAGS)
 export DEBUG_CFLAGS
 
-ifdef CONFIG_FUNCTION_TRACER
-ifdef CONFIG_FTRACE_MCOUNT_RECORD
-  # gcc 5 supports generating the mcount tables directly
-  ifeq ($(call cc-option-yn,-mrecord-mcount),y)
-    CC_FLAGS_FTRACE	+= -mrecord-mcount
-    export CC_USING_RECORD_MCOUNT := 1
-  endif
-  ifdef CONFIG_HAVE_NOP_MCOUNT
-    ifeq ($(call cc-option-yn, -mnop-mcount),y)
-      CC_FLAGS_FTRACE	+= -mnop-mcount
-      CC_FLAGS_USING	+= -DCC_USING_NOP_MCOUNT
-    endif
-  endif
-endif
-ifdef CONFIG_HAVE_FENTRY
-  ifeq ($(call cc-option-yn, -mfentry),y)
-    CC_FLAGS_FTRACE	+= -mfentry
-    CC_FLAGS_USING	+= -DCC_USING_FENTRY
-  endif
-endif
-export CC_FLAGS_FTRACE
-KBUILD_CFLAGS	+= $(CC_FLAGS_FTRACE) $(CC_FLAGS_USING)
-KBUILD_AFLAGS	+= $(CC_FLAGS_USING)
-ifdef CONFIG_DYNAMIC_FTRACE
-	ifdef CONFIG_HAVE_C_RECORDMCOUNT
-		BUILD_C_RECORDMCOUNT := y
-		export BUILD_C_RECORDMCOUNT
-	endif
-endif
-endif
-
 # We trigger additional mismatches with less inlining
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
 KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
 endif
 
-ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
-KBUILD_CFLAGS_KERNEL += -ffunction-sections -fdata-sections
-LDFLAGS_vmlinux += --gc-sections
-endif
-
-ifdef CONFIG_LIVEPATCH
-KBUILD_CFLAGS += $(call cc-option, -flive-patching=inline-clone)
-endif
-
 # arch Makefile may override CC so keep this after arch Makefile is included
-NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
+#NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 
 # warn about C99 declaration after statement
 KBUILD_CFLAGS += -Wdeclaration-after-statement
@@ -911,22 +750,13 @@ KBUILD_CFLAGS   += $(call cc-option,-Werror=designated-init)
 # change __FILE__ to the relative path from the srctree
 KBUILD_CFLAGS	+= $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
 
-# ensure -fcf-protection is disabled when using retpoline as it is
-# incompatible with -mindirect-branch=thunk-extern
-ifdef CONFIG_RETPOLINE
-KBUILD_CFLAGS += $(call cc-option,-fcf-protection=none)
-endif
-
-include scripts/Makefile.kasan
 include scripts/Makefile.extrawarn
-include scripts/Makefile.ubsan
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 KBUILD_CPPFLAGS += $(KCPPFLAGS)
 KBUILD_AFLAGS   += $(KAFLAGS)
 KBUILD_CFLAGS   += $(KCFLAGS)
 
-KBUILD_LDFLAGS_MODULE += --build-id
 LDFLAGS_vmlinux += --build-id
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
@@ -953,116 +783,20 @@ CHECKFLAGS += $(if $(CONFIG_64BIT),-m64,-m32)
 # this default value
 export KBUILD_IMAGE ?= vmlinux
 
-#
-# INSTALL_PATH specifies where to place the updated kernel and system map
-# images. Default is /boot, but you can set it to other values
-export	INSTALL_PATH ?= /boot
-
-#
-# INSTALL_DTBS_PATH specifies a prefix for relocations required by build roots.
-# Like INSTALL_MOD_PATH, it isn't defined in the Makefile, but can be passed as
-# an argument if needed. Otherwise it defaults to the kernel install path
-#
-export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
-
-#
-# INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
-# relocations required by build roots.  This is not defined in the
-# makefile but the argument can be passed to make if needed.
-#
-
-MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
-export MODLIB
-
-#
-# INSTALL_MOD_STRIP, if defined, will cause modules to be
-# stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
-# the default option --strip-debug will be used.  Otherwise,
-# INSTALL_MOD_STRIP value will be used as the options to the strip command.
-
-ifdef INSTALL_MOD_STRIP
-ifeq ($(INSTALL_MOD_STRIP),1)
-mod_strip_cmd = $(STRIP) --strip-debug
-else
-mod_strip_cmd = $(STRIP) $(INSTALL_MOD_STRIP)
-endif # INSTALL_MOD_STRIP=1
-else
-mod_strip_cmd = true
-endif # INSTALL_MOD_STRIP
-export mod_strip_cmd
-
-# CONFIG_MODULE_COMPRESS, if defined, will cause module to be compressed
-# after they are installed in agreement with CONFIG_MODULE_COMPRESS_GZIP
-# or CONFIG_MODULE_COMPRESS_XZ.
-
-mod_compress_cmd = true
-ifdef CONFIG_MODULE_COMPRESS
-  ifdef CONFIG_MODULE_COMPRESS_GZIP
-    mod_compress_cmd = gzip -n -f
-  endif # CONFIG_MODULE_COMPRESS_GZIP
-  ifdef CONFIG_MODULE_COMPRESS_XZ
-    mod_compress_cmd = xz -f
-  endif # CONFIG_MODULE_COMPRESS_XZ
-endif # CONFIG_MODULE_COMPRESS
-export mod_compress_cmd
-
-ifdef CONFIG_MODULE_SIG_ALL
-$(eval $(call config_filename,MODULE_SIG_KEY))
-
-mod_sign_cmd = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) $(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY) certs/signing_key.x509
-else
-mod_sign_cmd = true
-endif
-export mod_sign_cmd
-
-HOST_LIBELF_LIBS = $(shell pkg-config libelf --libs 2>/dev/null || echo -lelf)
-
-ifdef CONFIG_STACK_VALIDATION
-  has_libelf := $(call try-run,\
-		echo "int main() {}" | $(HOSTCC) -xc -o /dev/null $(HOST_LIBELF_LIBS) -,1,0)
-  ifeq ($(has_libelf),1)
-    objtool_target := tools/objtool FORCE
-  else
-    SKIP_STACK_VALIDATION := 1
-    export SKIP_STACK_VALIDATION
-  endif
-endif
-
-PHONY += prepare0
-
-export MODORDER := $(extmod-prefix)modules.order
-export MODULES_NSDEPS := $(extmod-prefix)modules.nsdeps
-
-ifeq ($(KBUILD_EXTMOD),)
-core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
-
-vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
-		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
-		     $(net-y) $(net-m) $(libs-y) $(libs-m) $(virt-y)))
-
-vmlinux-alldirs	:= $(sort $(vmlinux-dirs) Documentation \
-		     $(patsubst %/,%,$(filter %/, $(init-) $(core-) \
-			$(drivers-) $(net-) $(libs-) $(virt-))))
+vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(core-y) $(libs-y)))
+vmlinux-alldirs	:= $(sort $(vmlinux-dirs) \
+		     $(patsubst %/,%,$(filter %/, $(init-) $(core-) $(libs-))))
 
 build-dirs	:= $(vmlinux-dirs)
 clean-dirs	:= $(vmlinux-alldirs)
 
 init-y		:= $(patsubst %/, %/built-in.a, $(init-y))
 core-y		:= $(patsubst %/, %/built-in.a, $(core-y))
-drivers-y	:= $(patsubst %/, %/built-in.a, $(drivers-y))
-net-y		:= $(patsubst %/, %/built-in.a, $(net-y))
 libs-y2		:= $(patsubst %/, %/built-in.a, $(filter %/, $(libs-y)))
-ifdef CONFIG_MODULES
-libs-y1		:= $(filter-out %/, $(libs-y))
-libs-y2		+= $(patsubst %/, %/lib.a, $(filter %/, $(libs-y)))
-else
 libs-y1		:= $(patsubst %/, %/lib.a, $(libs-y))
-endif
-virt-y		:= $(patsubst %/, %/built-in.a, $(virt-y))
 
 # Externally visible symbols (used by link-vmlinux.sh)
-export KBUILD_VMLINUX_OBJS := $(head-y) $(init-y) $(core-y) $(libs-y2) \
-			      $(drivers-y) $(net-y) $(virt-y)
+export KBUILD_VMLINUX_OBJS := $(head-y) $(init-y) $(core-y) $(libs-y2)
 export KBUILD_VMLINUX_LIBS := $(libs-y1)
 export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
 export LDFLAGS_vmlinux
@@ -1071,38 +805,22 @@ export KBUILD_ALLDIRS := $(sort $(filter-out arch/%,$(vmlinux-alldirs)) LICENSES
 
 vmlinux-deps := $(KBUILD_LDS) $(KBUILD_VMLINUX_OBJS) $(KBUILD_VMLINUX_LIBS)
 
-# Recurse until adjust_autoksyms.sh is satisfied
-PHONY += autoksyms_recursive
-ifdef CONFIG_TRIM_UNUSED_KSYMS
-autoksyms_recursive: descend modules.order
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/adjust_autoksyms.sh \
-	  "$(MAKE) -f $(srctree)/Makefile vmlinux"
-endif
-
-# For the kernel to actually contain only the needed exported symbols,
-# we have to build modules as well to determine what those symbols are.
-# (this can be evaluated only once include/config/auto.conf has been included)
-ifdef CONFIG_TRIM_UNUSED_KSYMS
-  KBUILD_MODULES := 1
-endif
-
-autoksyms_h := $(if $(CONFIG_TRIM_UNUSED_KSYMS), include/generated/autoksyms.h)
-
-quiet_cmd_autoksyms_h = GEN     $@
-      cmd_autoksyms_h = mkdir -p $(dir $@); \
-			$(CONFIG_SHELL) $(srctree)/scripts/gen_autoksyms.sh $@
-
-$(autoksyms_h):
-	$(call cmd,autoksyms_h)
-
-ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
-
 # Final link of vmlinux with optional arch pass after final link
-cmd_link-vmlinux =                                                 \
-	$(CONFIG_SHELL) $< $(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_vmlinux) ;    \
-	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
+quite_cmd_link-vmlinux = LD	$@
 
-vmlinux: scripts/link-vmlinux.sh autoksyms_recursive $(vmlinux-deps) FORCE
+# For the demo
+cmd_link-vmlinux = $(CC) \
+		-Wl,--whole-archive $(KBUILD_VMLINUX_OBJS) -Wl,--no-whole-archive \
+		-Wl,--start-group $(KBUILD_VMLINUX_LIBS) -Wl,--end-group \
+		-o $@
+
+# For bare metal system maybe something like this:
+# cmd_link-vmlinux = $(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_vmlinux) \
+# 		--whole-archive $(KBUILD_VMLINUX_OBJS) --no-whole-archive \
+# 		--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
+# 		-T$(KBUILD_LDS) -o $@
+
+vmlinux: $(vmlinux-deps) FORCE
 	+$(call if_changed,link-vmlinux)
 
 targets := vmlinux
@@ -1122,7 +840,7 @@ include/config/kernel.release: FORCE
 # Carefully list dependencies so we do not try to build scripts twice
 # in parallel
 PHONY += scripts
-scripts: scripts_basic scripts_dtc
+scripts: scripts_basic
 	$(Q)$(MAKE) $(build)=$(@)
 
 # Things we need to do before we recursively start building the kernel
@@ -1133,37 +851,14 @@ scripts: scripts_basic scripts_dtc
 
 PHONY += prepare archprepare
 
-archprepare: outputmakefile archheaders archscripts scripts include/config/kernel.release \
-	asm-generic $(version_h) $(autoksyms_h) include/generated/utsrelease.h
+archprepare: outputmakefile scripts include/config/kernel.release \
+	$(version_h) include/generated/utsrelease.h
 
 prepare0: archprepare
-	$(Q)$(MAKE) $(build)=scripts/mod
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
-prepare: prepare0 prepare-objtool
-
-# Support for using generic headers in asm-generic
-asm-generic := -f $(srctree)/scripts/Makefile.asm-generic obj
-
-PHONY += asm-generic uapi-asm-generic
-asm-generic: uapi-asm-generic
-	$(Q)$(MAKE) $(asm-generic)=arch/$(SRCARCH)/include/generated/asm \
-	generic=include/asm-generic
-uapi-asm-generic:
-	$(Q)$(MAKE) $(asm-generic)=arch/$(SRCARCH)/include/generated/uapi/asm \
-	generic=include/uapi/asm-generic
-
-PHONY += prepare-objtool
-prepare-objtool: $(objtool_target)
-ifeq ($(SKIP_STACK_VALIDATION),1)
-ifdef CONFIG_UNWINDER_ORC
-	@echo "error: Cannot generate ORC metadata for CONFIG_UNWINDER_ORC=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
-	@false
-else
-	@echo "warning: Cannot use CONFIG_STACK_VALIDATION=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
-endif
-endif
+prepare: prepare0
 
 # Generate some files
 # ---------------------------------------------------------------------------
@@ -1188,7 +883,6 @@ endef
 
 $(version_h): FORCE
 	$(call filechk,version.h)
-	$(Q)rm -f $(old_version_h)
 
 include/generated/utsrelease.h: include/config/kernel.release FORCE
 	$(call filechk,utsrelease.h)
@@ -1197,182 +891,6 @@ PHONY += headerdep
 headerdep:
 	$(Q)find $(srctree)/include/ -name '*.h' | xargs --max-args 1 \
 	$(srctree)/scripts/headerdep.pl -I$(srctree)/include
-
-# ---------------------------------------------------------------------------
-# Kernel headers
-
-#Default location for installed headers
-export INSTALL_HDR_PATH = $(objtree)/usr
-
-quiet_cmd_headers_install = INSTALL $(INSTALL_HDR_PATH)/include
-      cmd_headers_install = \
-	mkdir -p $(INSTALL_HDR_PATH); \
-	rsync -mrl --include='*/' --include='*\.h' --exclude='*' \
-	usr/include $(INSTALL_HDR_PATH)
-
-PHONY += headers_install
-headers_install: headers
-	$(call cmd,headers_install)
-
-PHONY += archheaders archscripts
-
-hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
-
-PHONY += headers
-headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
-	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/Kbuild),, \
-	  $(error Headers not exportable for the $(SRCARCH) architecture))
-	$(Q)$(MAKE) $(hdr-inst)=include/uapi
-	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi
-
-# Deprecated. It is no-op now.
-PHONY += headers_check
-headers_check:
-	@:
-
-ifdef CONFIG_HEADERS_INSTALL
-prepare: headers
-endif
-
-PHONY += scripts_unifdef
-scripts_unifdef: scripts_basic
-	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
-
-# ---------------------------------------------------------------------------
-# Kernel selftest
-
-PHONY += kselftest
-kselftest:
-	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests run_tests
-
-kselftest-%: FORCE
-	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests $*
-
-PHONY += kselftest-merge
-kselftest-merge:
-	$(if $(wildcard $(objtree)/.config),, $(error No .config exists, config your kernel first!))
-	$(Q)find $(srctree)/tools/testing/selftests -name config | \
-		xargs $(srctree)/scripts/kconfig/merge_config.sh -m $(objtree)/.config
-	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
-
-# ---------------------------------------------------------------------------
-# Devicetree files
-
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/),)
-dtstree := arch/$(SRCARCH)/boot/dts
-endif
-
-ifneq ($(dtstree),)
-
-%.dtb: include/config/kernel.release scripts_dtc
-	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
-
-PHONY += dtbs dtbs_install dtbs_check
-dtbs: include/config/kernel.release scripts_dtc
-	$(Q)$(MAKE) $(build)=$(dtstree)
-
-ifneq ($(filter dtbs_check, $(MAKECMDGOALS)),)
-export CHECK_DTBS=y
-dtbs: dt_binding_check
-endif
-
-dtbs_check: dtbs
-
-dtbs_install:
-	$(Q)$(MAKE) $(dtbinst)=$(dtstree) dst=$(INSTALL_DTBS_PATH)
-
-ifdef CONFIG_OF_EARLY_FLATTREE
-all: dtbs
-endif
-
-endif
-
-PHONY += scripts_dtc
-scripts_dtc: scripts_basic
-	$(Q)$(MAKE) $(build)=scripts/dtc
-
-ifneq ($(filter dt_binding_check, $(MAKECMDGOALS)),)
-export CHECK_DT_BINDING=y
-endif
-
-PHONY += dt_binding_check
-dt_binding_check: scripts_dtc
-	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings
-
-# ---------------------------------------------------------------------------
-# Modules
-
-ifdef CONFIG_MODULES
-
-# By default, build modules as well
-
-all: modules
-
-# Build modules
-#
-# A module can be listed more than once in obj-m resulting in
-# duplicate lines in modules.order files.  Those are removed
-# using awk while concatenating to the final file.
-
-PHONY += modules
-modules: $(if $(KBUILD_BUILTIN),vmlinux) modules.order
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh
-
-modules.order: descend
-	$(Q)$(AWK) '!x[$$0]++' $(addsuffix /$@, $(build-dirs)) > $@
-
-# Target to prepare building external modules
-PHONY += modules_prepare
-modules_prepare: prepare
-
-# Target to install modules
-PHONY += modules_install
-modules_install: _modinst_ _modinst_post
-
-PHONY += _modinst_
-_modinst_:
-	@rm -rf $(MODLIB)/kernel
-	@rm -f $(MODLIB)/source
-	@mkdir -p $(MODLIB)/kernel
-	@ln -s $(abspath $(srctree)) $(MODLIB)/source
-	@if [ ! $(objtree) -ef  $(MODLIB)/build ]; then \
-		rm -f $(MODLIB)/build ; \
-		ln -s $(CURDIR) $(MODLIB)/build ; \
-	fi
-	@sed 's:^:kernel/:' modules.order > $(MODLIB)/modules.order
-	@cp -f modules.builtin $(MODLIB)/
-	@cp -f $(objtree)/modules.builtin.modinfo $(MODLIB)/
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
-
-# This depmod is only for convenience to give the initial
-# boot a modules.dep even before / is mounted read-write.  However the
-# boot script depmod is the master version.
-PHONY += _modinst_post
-_modinst_post: _modinst_
-	$(call cmd,depmod)
-
-ifeq ($(CONFIG_MODULE_SIG), y)
-PHONY += modules_sign
-modules_sign:
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modsign
-endif
-
-else # CONFIG_MODULES
-
-# Modules not configured
-# ---------------------------------------------------------------------------
-
-PHONY += modules modules_install
-modules modules_install:
-	@echo >&2
-	@echo >&2 "The present kernel configuration has modules disabled."
-	@echo >&2 "Type 'make config' and enable loadable module support."
-	@echo >&2 "Then build a kernel with module support enabled."
-	@echo >&2
-	@exit 1
-
-endif # CONFIG_MODULES
 
 ###
 # Cleaning is done on three levels.
@@ -1408,7 +926,6 @@ clean: rm-files := $(CLEAN_FILES)
 PHONY += archclean vmlinuxclean
 
 vmlinuxclean:
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/link-vmlinux.sh clean
 	$(Q)$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) clean)
 
 clean: archclean vmlinuxclean
@@ -1443,274 +960,6 @@ distclean: mrproper
 		-o -name 'core' \) \
 		-type f -print | xargs rm -f
 
-
-# Packaging of the kernel to various formats
-# ---------------------------------------------------------------------------
-
-%src-pkg: FORCE
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.package $@
-%pkg: include/config/kernel.release FORCE
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.package $@
-
-# Brief documentation of the typical targets used
-# ---------------------------------------------------------------------------
-
-boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*_defconfig)
-boards := $(sort $(notdir $(boards)))
-board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
-board-dirs := $(sort $(notdir $(board-dirs:/=)))
-
-PHONY += help
-help:
-	@echo  'Cleaning targets:'
-	@echo  '  clean		  - Remove most generated files but keep the config and'
-	@echo  '                    enough build support to build external modules'
-	@echo  '  mrproper	  - Remove all generated files + config + various backup files'
-	@echo  '  distclean	  - mrproper + remove editor backup and patch files'
-	@echo  ''
-	@echo  'Configuration targets:'
-	@$(MAKE) -f $(srctree)/scripts/kconfig/Makefile help
-	@echo  ''
-	@echo  'Other generic targets:'
-	@echo  '  all		  - Build all targets marked with [*]'
-	@echo  '* vmlinux	  - Build the bare kernel'
-	@echo  '* modules	  - Build all modules'
-	@echo  '  modules_install - Install all modules to INSTALL_MOD_PATH (default: /)'
-	@echo  '  dir/            - Build all files in dir and below'
-	@echo  '  dir/file.[ois]  - Build specified target only'
-	@echo  '  dir/file.ll     - Build the LLVM assembly file'
-	@echo  '                    (requires compiler support for LLVM assembly generation)'
-	@echo  '  dir/file.lst    - Build specified mixed source/assembly target only'
-	@echo  '                    (requires a recent binutils and recent build (System.map))'
-	@echo  '  dir/file.ko     - Build module including final link'
-	@echo  '  modules_prepare - Set up for building external modules'
-	@echo  '  tags/TAGS	  - Generate tags file for editors'
-	@echo  '  cscope	  - Generate cscope index'
-	@echo  '  gtags           - Generate GNU GLOBAL index'
-	@echo  '  kernelrelease	  - Output the release version string (use with make -s)'
-	@echo  '  kernelversion	  - Output the version stored in Makefile (use with make -s)'
-	@echo  '  image_name	  - Output the image name (use with make -s)'
-	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
-	 echo  '                    (default: $(INSTALL_HDR_PATH))'; \
-	 echo  ''
-	@echo  'Static analysers:'
-	@echo  '  checkstack      - Generate a list of stack hogs'
-	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
-	@echo  '  versioncheck    - Sanity check on version.h usage'
-	@echo  '  includecheck    - Check for duplicate included header files'
-	@echo  '  export_report   - List the usages of all exported symbols'
-	@echo  '  headerdep       - Detect inclusion cycles in headers'
-	@echo  '  coccicheck      - Check with Coccinelle'
-	@echo  ''
-	@echo  'Tools:'
-	@echo  '  nsdeps          - Generate missing symbol namespace dependencies'
-	@echo  ''
-	@echo  'Kernel selftest:'
-	@echo  '  kselftest         - Build and run kernel selftest'
-	@echo  '                      Build, install, and boot kernel before'
-	@echo  '                      running kselftest on it'
-	@echo  '                      Run as root for full coverage'
-	@echo  '  kselftest-all     - Build kernel selftest'
-	@echo  '  kselftest-install - Build and install kernel selftest'
-	@echo  '  kselftest-clean   - Remove all generated kselftest files'
-	@echo  '  kselftest-merge   - Merge all the config dependencies of'
-	@echo  '		      kselftest to existing .config.'
-	@echo  ''
-	@$(if $(dtstree), \
-		echo 'Devicetree:'; \
-		echo '* dtbs             - Build device tree blobs for enabled boards'; \
-		echo '  dtbs_install     - Install dtbs to $(INSTALL_DTBS_PATH)'; \
-		echo '  dt_binding_check - Validate device tree binding documents'; \
-		echo '  dtbs_check       - Validate device tree source files';\
-		echo '')
-
-	@echo 'Userspace tools targets:'
-	@echo '  use "make tools/help"'
-	@echo '  or  "cd tools; make help"'
-	@echo  ''
-	@echo  'Kernel packaging:'
-	@$(MAKE) -f $(srctree)/scripts/Makefile.package help
-	@echo  ''
-	@echo  'Documentation targets:'
-	@$(MAKE) -f $(srctree)/Documentation/Makefile dochelp
-	@echo  ''
-	@echo  'Architecture specific targets ($(SRCARCH)):'
-	@$(if $(archhelp),$(archhelp),\
-		echo '  No architecture specific help defined for $(SRCARCH)')
-	@echo  ''
-	@$(if $(boards), \
-		$(foreach b, $(boards), \
-		printf "  %-27s - Build for %s\\n" $(b) $(subst _defconfig,,$(b));) \
-		echo '')
-	@$(if $(board-dirs), \
-		$(foreach b, $(board-dirs), \
-		printf "  %-16s - Show %s-specific targets\\n" help-$(b) $(b);) \
-		printf "  %-16s - Show all of the above\\n" help-boards; \
-		echo '')
-
-	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
-	@echo  '  make V=2   [targets] 2 => give reason for rebuild of target'
-	@echo  '  make O=dir [targets] Locate all output files in "dir", including .config'
-	@echo  '  make C=1   [targets] Check re-compiled c source with $$CHECK'
-	@echo  '                       (sparse by default)'
-	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK'
-	@echo  '  make RECORDMCOUNT_WARN=1 [targets] Warn about ignored mcount sections'
-	@echo  '  make W=n   [targets] Enable extra build checks, n=1,2,3 where'
-	@echo  '		1: warnings which may be relevant and do not occur too often'
-	@echo  '		2: warnings which occur quite often but may still be relevant'
-	@echo  '		3: more obscure warnings, can most likely be ignored'
-	@echo  '		Multiple levels can be combined with W=12 or W=123'
-	@echo  ''
-	@echo  'Execute "make" or "make all" to build all targets marked with [*] '
-	@echo  'For further info see the ./README file'
-
-
-help-board-dirs := $(addprefix help-,$(board-dirs))
-
-help-boards: $(help-board-dirs)
-
-boards-per-dir = $(sort $(notdir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/$*/*_defconfig)))
-
-$(help-board-dirs): help-%:
-	@echo  'Architecture specific targets ($(SRCARCH) $*):'
-	@$(if $(boards-per-dir), \
-		$(foreach b, $(boards-per-dir), \
-		printf "  %-24s - Build for %s\\n" $*/$(b) $(subst _defconfig,,$(b));) \
-		echo '')
-
-
-# Documentation targets
-# ---------------------------------------------------------------------------
-DOC_TARGETS := xmldocs latexdocs pdfdocs htmldocs epubdocs cleandocs \
-	       linkcheckdocs dochelp refcheckdocs
-PHONY += $(DOC_TARGETS)
-$(DOC_TARGETS):
-	$(Q)$(MAKE) $(build)=Documentation $@
-
-# Misc
-# ---------------------------------------------------------------------------
-
-PHONY += scripts_gdb
-scripts_gdb: prepare0
-	$(Q)$(MAKE) $(build)=scripts/gdb
-	$(Q)ln -fsn $(abspath $(srctree)/scripts/gdb/vmlinux-gdb.py)
-
-ifdef CONFIG_GDB_SCRIPTS
-all: scripts_gdb
-endif
-
-else # KBUILD_EXTMOD
-
-###
-# External module support.
-# When building external modules the kernel used as basis is considered
-# read-only, and no consistency checks are made and the make
-# system is not used on the basis kernel. If updates are required
-# in the basis kernel ordinary make commands (without M=...) must
-# be used.
-#
-# The following are the only valid targets when building external
-# modules.
-# make M=dir clean     Delete all automatically generated files
-# make M=dir modules   Make all modules in specified dir
-# make M=dir	       Same as 'make M=dir modules'
-# make M=dir modules_install
-#                      Install the modules built in the module directory
-#                      Assumes install directory is already created
-
-# We are always building modules
-KBUILD_MODULES := 1
-
-PHONY += $(objtree)/Module.symvers
-$(objtree)/Module.symvers:
-	@test -e $(objtree)/Module.symvers || ( \
-	echo; \
-	echo "  WARNING: Symbol version dump $(objtree)/Module.symvers"; \
-	echo "           is missing; modules will have no dependencies and modversions."; \
-	echo )
-
-build-dirs := $(KBUILD_EXTMOD)
-PHONY += modules
-modules: descend $(objtree)/Module.symvers
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
-
-PHONY += modules_install
-modules_install: _emodinst_ _emodinst_post
-
-install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
-PHONY += _emodinst_
-_emodinst_:
-	$(Q)mkdir -p $(MODLIB)/$(install-dir)
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
-
-PHONY += _emodinst_post
-_emodinst_post: _emodinst_
-	$(call cmd,depmod)
-
-clean-dirs := $(KBUILD_EXTMOD)
-clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps
-
-PHONY += /
-/:
-	@echo >&2 '"$(MAKE) /" is no longer supported. Please use "$(MAKE) ./" instead.'
-
-PHONY += help
-help:
-	@echo  '  Building external modules.'
-	@echo  '  Syntax: make -C path/to/kernel/src M=$$PWD target'
-	@echo  ''
-	@echo  '  modules         - default target, build the module(s)'
-	@echo  '  modules_install - install the module'
-	@echo  '  clean           - remove generated files in module directory only'
-	@echo  ''
-
-PHONY += prepare
-endif # KBUILD_EXTMOD
-
-# Single targets
-# ---------------------------------------------------------------------------
-# To build individual files in subdirectories, you can do like this:
-#
-#   make foo/bar/baz.s
-#
-# The supported suffixes for single-target are listed in 'single-targets'
-#
-# To build only under specific subdirectories, you can do like this:
-#
-#   make foo/bar/baz/
-
-ifdef single-build
-
-# .ko is special because modpost is needed
-single-ko := $(sort $(filter %.ko, $(MAKECMDGOALS)))
-single-no-ko := $(sort $(patsubst %.ko,%.mod, $(MAKECMDGOALS)))
-
-$(single-ko): single_modpost
-	@:
-$(single-no-ko): descend
-	@:
-
-ifeq ($(KBUILD_EXTMOD),)
-# For the single build of in-tree modules, use a temporary file to avoid
-# the situation of modules_install installing an invalid modules.order.
-MODORDER := .modules.tmp
-endif
-
-PHONY += single_modpost
-single_modpost: $(single-no-ko)
-	$(Q){ $(foreach m, $(single-ko), echo $(extmod-prefix)$m;) } > $(MODORDER)
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
-
-KBUILD_MODULES := 1
-
-export KBUILD_SINGLE_TARGETS := $(addprefix $(extmod-prefix), $(single-no-ko))
-
-# trim unrelated directories
-build-dirs := $(foreach d, $(build-dirs), \
-			$(if $(filter $(d)/%, $(KBUILD_SINGLE_TARGETS)), $(d)))
-
-endif
-
 # Handle descending into subdirectories listed in $(build-dirs)
 # Preset locale variables to speed up the build process. Limit locale
 # tweaks to this spot to avoid wrong language settings when running
@@ -1718,10 +967,8 @@ endif
 # Error messages still appears in the original language
 PHONY += descend $(build-dirs)
 descend: $(build-dirs)
-$(build-dirs): prepare
-	$(Q)$(MAKE) $(build)=$@ \
-	single-build=$(if $(filter-out $@/, $(filter $@/%, $(single-no-ko))),1) \
-	need-builtin=1 need-modorder=1
+$(build-dirs):
+	$(Q)$(MAKE) $(build)=$@ need-builtin=1
 
 clean-dirs := $(addprefix _clean_, $(clean-dirs))
 PHONY += $(clean-dirs) clean
@@ -1731,7 +978,7 @@ $(clean-dirs):
 clean: $(clean-dirs)
 	$(call cmd,rmdirs)
 	$(call cmd,rmfiles)
-	@find $(if $(KBUILD_EXTMOD), $(KBUILD_EXTMOD), .) $(RCS_FIND_IGNORE) \
+	@find . $(RCS_FIND_IGNORE) \
 		\( -name '*.[aios]' -o -name '*.ko' -o -name '.*.cmd' \
 		-o -name '*.ko.*' \
 		-o -name '*.dtb' -o -name '*.dtb.S' -o -name '*.dt.yaml' \
@@ -1746,97 +993,21 @@ clean: $(clean-dirs)
 		-o -name '*.ll' \
 		-o -name '*.gcno' \) -type f -print | xargs rm -f
 
-# Generate tags for editors
-# ---------------------------------------------------------------------------
-quiet_cmd_tags = GEN     $@
-      cmd_tags = $(BASH) $(srctree)/scripts/tags.sh $@
-
-tags TAGS cscope gtags: FORCE
-	$(call cmd,tags)
-
-# Script to generate missing namespace dependencies
-# ---------------------------------------------------------------------------
-
-PHONY += nsdeps
-nsdeps: export KBUILD_NSDEPS=1
-nsdeps: modules
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/nsdeps
-
 # Scripts to check various things for consistency
 # ---------------------------------------------------------------------------
 
-PHONY += includecheck versioncheck coccicheck namespacecheck export_report
+PHONY += includecheck
 
 includecheck:
 	find $(srctree)/* $(RCS_FIND_IGNORE) \
 		-name '*.[hcS]' -type f -print | sort \
 		| xargs $(PERL) -w $(srctree)/scripts/checkincludes.pl
 
-versioncheck:
-	find $(srctree)/* $(RCS_FIND_IGNORE) \
-		-name '*.[hcS]' -type f -print | sort \
-		| xargs $(PERL) -w $(srctree)/scripts/checkversion.pl
-
-coccicheck:
-	$(Q)$(BASH) $(srctree)/scripts/$@
-
-namespacecheck:
-	$(PERL) $(srctree)/scripts/namespace.pl
-
-export_report:
-	$(PERL) $(srctree)/scripts/export_report.pl
-
-PHONY += checkstack kernelrelease kernelversion image_name
-
-# UML needs a little special treatment here.  It wants to use the host
-# toolchain, so needs $(SUBARCH) passed to checkstack.pl.  Everyone
-# else wants $(ARCH), including people doing cross-builds, which means
-# that $(SUBARCH) doesn't work here.
-ifeq ($(ARCH), um)
-CHECKSTACK_ARCH := $(SUBARCH)
-else
-CHECKSTACK_ARCH := $(ARCH)
-endif
-checkstack:
-	$(OBJDUMP) -d vmlinux $$(find . -name '*.ko') | \
-	$(PERL) $(srctree)/scripts/checkstack.pl $(CHECKSTACK_ARCH)
-
-kernelrelease:
-	@echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
-
-kernelversion:
-	@echo $(KERNELVERSION)
-
-image_name:
-	@echo $(KBUILD_IMAGE)
-
-# Clear a bunch of variables before executing the submake
-
-ifeq ($(quiet),silent_)
-tools_silent=s
-endif
-
-tools/: FORCE
-	$(Q)mkdir -p $(objtree)/tools
-	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS="$(tools_silent) $(filter --j% -j,$(MAKEFLAGS))" O=$(abspath $(objtree)) subdir=tools -C $(srctree)/tools/
-
-tools/%: FORCE
-	$(Q)mkdir -p $(objtree)/tools
-	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS="$(tools_silent) $(filter --j% -j,$(MAKEFLAGS))" O=$(abspath $(objtree)) subdir=tools -C $(srctree)/tools/ $*
-
-# FIXME Should go into a make.lib or something
-# ===========================================================================
-
 quiet_cmd_rmdirs = $(if $(wildcard $(rm-dirs)),CLEAN   $(wildcard $(rm-dirs)))
       cmd_rmdirs = rm -rf $(rm-dirs)
 
 quiet_cmd_rmfiles = $(if $(wildcard $(rm-files)),CLEAN   $(wildcard $(rm-files)))
       cmd_rmfiles = rm -f $(rm-files)
-
-# Run depmod only if we have System.map and depmod is executable
-quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
-      cmd_depmod = $(CONFIG_SHELL) $(srctree)/scripts/depmod.sh $(DEPMOD) \
-                   $(KERNELRELEASE)
 
 # read saved command lines for existing targets
 existing-targets := $(wildcard $(sort $(targets)))

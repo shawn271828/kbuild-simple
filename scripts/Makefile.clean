@@ -17,8 +17,8 @@ include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-di
 # Figure out what we need to build from the various variables
 # ==========================================================================
 
-subdir-ymn := $(sort $(subdir-y) $(subdir-m) $(subdir-) \
-		$(patsubst %/,%, $(filter %/, $(obj-y) $(obj-m) $(obj-))))
+subdir-ymn := $(sort $(subdir-y) $(subdir-) \
+		$(patsubst %/,%, $(filter %/, $(obj-y) $(obj-))))
 
 # Add subdir path
 
@@ -27,10 +27,10 @@ subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
 # build a list of files to remove, usually relative to the current
 # directory
 
-__clean-files	:= $(extra-y) $(extra-m) $(extra-)       \
-		   $(always) $(always-y) $(always-m) $(always-) $(targets) $(clean-files)   \
-		   $(hostprogs) $(hostprogs-y) $(hostprogs-m) $(hostprogs-) \
-		   $(hostcxxlibs-y) $(hostcxxlibs-m)
+__clean-files	:= $(extra-y) $(extra-)       \
+		   $(always) $(always-y) $(always-) $(targets) $(clean-files)   \
+		   $(hostprogs) $(hostprogs-y) $(hostprogs-) \
+		   $(hostcxxlibs-y)
 
 __clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
 

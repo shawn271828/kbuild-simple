@@ -39,7 +39,7 @@ $(obj)/%.tab.c $(obj)/%.tab.h: $(src)/%.y FORCE
 # They are linked as C++ code to the executable qconf
 
 __hostprogs := $(sort $(hostprogs))
-host-cxxshlib := $(sort $(hostcxxlibs-y) $(hostcxxlibs-m))
+host-cxxshlib := $(sort $(hostcxxlibs-y))
 
 # C code
 # Executables compiled from a single .c file
