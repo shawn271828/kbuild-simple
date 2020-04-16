@@ -926,7 +926,7 @@ clean: rm-files := $(CLEAN_FILES)
 PHONY += archclean vmlinuxclean
 
 vmlinuxclean:
-	$(Q)$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) clean)
+	$(Q) rm -f vmlinux
 
 clean: archclean vmlinuxclean
 
