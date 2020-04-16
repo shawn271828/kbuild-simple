@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config GREETINGS
+	string "Greeting string"
+	default "Hello!"
+	help
+	  Your greeting strings here.
+
+config EXTRA_MESSAGE
+	bool "Print extra messages"
+	default y
+	help
+	  Print messages in all log levels.

@@ -12,3 +12,7 @@ source "scripts/Kconfig.include"
 source "init/Kconfig"
 
 source "init/Kconfig.debug"
+
+source "core/Kconfig"
+
+source "lib/Kconfig"

@@ -567,8 +567,8 @@ endif
 
 # Objects we will link into vmlinux / subdirs we need to visit
 init-y		:= init/
-libs-y		:=
-core-y		:=
+libs-y		:= lib/
+core-y		:= core/
 
 # The all: target is the default when no target is given on the
 # command line.

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0
+config SHOW_LOG_LEVEL
+	bool "Show log level message"
+	default y
+	help
+	  Print extra information of current log message.
+
+config MULTIPLE_LOG_LEVELS
+	bool "Use different log levels"
+	default y
+
+config LOG_INFO
+	bool "Enable info log messages"
+	default n
+	depends on MULTIPLE_LOG_LEVELS
+
+config LOG_WARNING
+	bool "Enable warning log messages"
+	default n
+	depends on MULTIPLE_LOG_LEVELS
+
+config LOG_ERROR
+	bool "Enable error log messages"
+	default y
+	depends on MULTIPLE_LOG_LEVELS
